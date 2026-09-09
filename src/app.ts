@@ -35,6 +35,19 @@ export function createApp(opts: AppOptions) {
     next();
   });
 
+  // The login page's <form> posts to /login, which then redirects the browser
+  // to the OAuth client's redirect_uri — a different origin (e.g. mcp-remote's
+  // local callback port, or claude.ai). Browsers enforce form-action against
+  // that final destination, not just the form's own target, so 'self' alone
+  // silently blocks every sign-in redirect. Allow exactly the hosts the server
+  // already accepts as redirect_uris (see auth.ts#redirectAllowed).
+  const loginFormAction = [
+    "'self'",
+    ...config.allowedRedirectHosts.flatMap((h) =>
+      h === "localhost" || h === "127.0.0.1" ? [`http://${h}:*`, `https://${h}:*`] : [`https://${h}`, `https://*.${h}`],
+    ),
+  ].join(" ");
+
   const baseUrl = new URL(config.baseUrl);
   const mcpUrl = new URL("/mcp", baseUrl);
   const provider = new SingleUserProvider(store(), {
@@ -107,6 +120,13 @@ export function createApp(opts: AppOptions) {
   app.get("/terms", (_req, res) => void res.type("html").send(termsPage()));
 
   // --- OAuth server for the MCP connector (single user) ---
+
+  // Must be mounted before mcpAuthRouter so it wins for GET /authorize (the
+  // login page) — Express applies middleware in registration order.
+  if (opts.remote) app.use("/authorize", (_req, res, next) => {
+    res.set("Content-Security-Policy", `default-src 'none'; style-src 'unsafe-inline'; form-action ${loginFormAction}; frame-ancestors 'none'; base-uri 'none'`);
+    next();
+  });
 
   if (opts.remote) app.use(
     mcpAuthRouter({
