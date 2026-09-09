@@ -3,7 +3,7 @@
 // access without the account holder present). Nothing is stored except which
 // transaction ids already triggered a notification.
 import { config } from "./config.ts";
-import { eb, EnableBankingError } from "./enablebanking.ts";
+import { bank as eb, BankError as EnableBankingError } from "./bank.ts";
 import { store, type StoredAccount, type Watch } from "./store.ts";
 import { daysLeft, isoDate, simplifyBalances, simplifyTransaction, type SimpleTransaction } from "./data.ts";
 

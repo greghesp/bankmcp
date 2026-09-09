@@ -86,6 +86,67 @@ export function connectedPage(session: { aspsp: { name: string }; access: { vali
   );
 }
 
+export function plaidLinkPage(token: string, state: string): string {
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark"><title>Connect a bank · ${esc(config.appName)}</title>
+<style>
+  :root{--bg:#f4f3ef;--card:#fff;--ink:#141414;--muted:#6f6e69;--line:#e6e4dd;--ok:#1f7a4d;--err:#b3261e}
+  @media (prefers-color-scheme:dark){:root{--bg:#111110;--card:#1b1b1a;--ink:#f2f1ec;--muted:#9b9a94;--line:#2c2b29;--ok:#5cc08a;--err:#ff8a7a}}
+  *{box-sizing:border-box}
+  body{margin:0;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:460px;margin:0 auto;padding:12vh 20px 48px}
+  .brand{display:flex;align-items:center;gap:10px;margin:0 0 22px;font-weight:800;font-size:20px;letter-spacing:-.02em}
+  .brand .mark{width:28px;height:28px;border-radius:8px;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-size:15px;font-weight:900}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px 28px 26px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--muted);margin:0 0 12px}
+  .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .pill.ok{color:var(--ok)}.pill.ok::before{background:var(--ok)}
+  .pill.error{color:var(--err)}.pill.error::before{background:var(--err)}
+  h1{font-size:26px;line-height:1.2;letter-spacing:-.02em;margin:0 0 12px}
+  p{margin:0 0 12px}.muted{color:var(--muted)}.error{color:var(--err)}
+  footer{margin-top:20px;font-size:12px;color:var(--muted)}
+  footer a{color:inherit}
+</style>
+<body><div class="wrap">
+  <div class="brand"><span class="mark">${esc(config.appName.replace(/[™®]/g, "").trim().charAt(0).toUpperCase() || "B")}</span><span>${esc(config.appName)}</span></div>
+  <div class="card" id="card"><div class="pill neutral" id="pill">Connecting</div><h1 id="title">Opening your bank's login…</h1><p class="muted" id="body">A window from Plaid should appear. If it does not, check your pop-up blocker.</p></div>
+  <footer>${esc(config.appName)} · read-only · self-hosted · <a href="/privacy">privacy</a> · <a href="/terms">terms</a></footer>
+</div>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<script>
+  const pill = document.getElementById("pill"), title = document.getElementById("title"), body = document.getElementById("body");
+  function show(kind, t, b) {
+    pill.className = "pill " + kind;
+    pill.textContent = kind === "ok" ? "Connected" : kind === "error" ? "Not connected" : "Connecting";
+    title.textContent = t;
+    body.textContent = b;
+  }
+  const handler = Plaid.create({
+    token: ${JSON.stringify(token)},
+    onSuccess: (public_token) => {
+      show("neutral", "Finishing up…", "Linking your accounts.");
+      fetch("/plaid/link/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ public_token, state: ${JSON.stringify(state)} }),
+      })
+        .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+          if (ok) show("ok", "Bank linked", "You can close this tab and go back to your assistant.");
+          else show("error", "Bank not connected", data.error || "Something went wrong. Go back to your assistant and start again.");
+        })
+        .catch(() => show("error", "Bank not connected", "Something went wrong. Go back to your assistant and start again."));
+    },
+    onExit: (err) => {
+      if (err) show("error", "Bank not connected", err.display_message || err.error_message || "The bank login was not completed. Go back to your assistant and start again.");
+      else show("error", "Bank not connected", "The bank login was not completed. Go back to your assistant and start again.");
+    },
+  });
+  handler.open();
+</script>
+</body></html>`;
+}
+
 export function failedPage(message: string): string {
   return shell("Bank not connected", `<p class="error">${esc(message)}</p><p class="muted">Go back to your assistant and start again.</p>`, { kind: "error", pill: "Not connected" });
 }
@@ -124,26 +185,47 @@ export function statusPage(input: { problems: string[]; mcpUrl: string; callback
 
 export const CONSENT_DESCRIPTION = `${config.appName} lets you ask your AI assistant about your own accounts. It reads balances and transactions. It has no payment tools, and only the holder of the password can use it. You can revoke access at your bank at any time.`;
 
-export function setupPage(opts: { error?: string; values?: { app_id?: string; country?: string }; baseUrl?: string } = {}): string {
+export function setupPage(
+  opts: { error?: string; values?: { provider?: string; app_id?: string; country?: string; plaid_client_id?: string; plaid_env?: string }; baseUrl?: string } = {},
+): string {
   const v = opts.values ?? {};
   const base = (opts.baseUrl ?? config.baseUrl).replace(/\/+$/, "");
+  const provider = v.provider === "plaid" ? "plaid" : "enablebanking";
   const row = (label: string, value: string) =>
     `<div class="copy"><p class="muted">${esc(label)}</p><div class="copyrow"><code>${esc(value)}</code><button type="button" class="copybtn" data-copy="${esc(value)}">Copy</button></div></div>`;
+  const radio = (value: string, label: string) =>
+    `<label style="display:flex;align-items:center;gap:8px;font-weight:400;margin:8px 0"><input type="radio" name="provider" value="${value}" style="width:auto" ${provider === value ? "checked" : ""}> ${esc(label)}</label>`;
   return shell(
     `Set up ${config.appName}`,
-    `<p>First register an application at <a href="https://enablebanking.com/cp/applications" target="_blank" rel="noopener">Enable Banking</a>. Its form asks for these values:</p>
-     ${row("Allowed redirect URL", `${base}/callback`)}
-     ${row("Application description", CONSENT_DESCRIPTION)}
-     ${row("Privacy URL", `${base}/privacy`)}
-     ${row("Terms URL", `${base}/terms`)}
-     <p class="muted" style="margin-top:18px">Environment: <b>Production</b> for your real accounts, <b>Sandbox</b> to try with test data. Keep <b>generate private key</b> selected; a <code style="padding:1px 6px">.pem</code> file downloads once when you save. That file and the application id shown after saving go here:</p>
-     ${opts.error ? `<p class="error">${esc(opts.error)}</p>` : ""}
+    `${opts.error ? `<p class="error">${esc(opts.error)}</p>` : ""}
      <form method="post" action="/setup" id="setup">
-       <label for="app_id">Application id</label>
-       <input id="app_id" name="app_id" required autocomplete="off" spellcheck="false" placeholder="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" value="${esc(v.app_id ?? "")}">
-       <label for="pemfile">Private key file (the .pem that downloaded when you registered)</label>
-       <input id="pemfile" type="file" accept=".pem,.key,.txt,application/x-pem-file">
-       <textarea id="pem" name="pem" rows="3" placeholder="…or paste the contents of the .pem file here" spellcheck="false"></textarea>
+       <p>Choose which service reads your bank data.</p>
+       <div id="provider-choice">${radio("enablebanking", "Enable Banking")}${radio("plaid", "Plaid")}</div>
+       <div id="eb-fields">
+         <p>Register an application at <a href="https://enablebanking.com/cp/applications" target="_blank" rel="noopener">Enable Banking</a>. Its form asks for these values:</p>
+         ${row("Allowed redirect URL", `${base}/callback`)}
+         ${row("Application description", CONSENT_DESCRIPTION)}
+         ${row("Privacy URL", `${base}/privacy`)}
+         ${row("Terms URL", `${base}/terms`)}
+         <p class="muted" style="margin-top:18px">Environment: <b>Production</b> for your real accounts, <b>Sandbox</b> to try with test data. Keep <b>generate private key</b> selected; a <code style="padding:1px 6px">.pem</code> file downloads once when you save. That file and the application id shown after saving go here:</p>
+         <label for="app_id">Application id</label>
+         <input id="app_id" name="app_id" autocomplete="off" spellcheck="false" placeholder="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" value="${esc(v.app_id ?? "")}">
+         <label for="pemfile">Private key file (the .pem that downloaded when you registered)</label>
+         <input id="pemfile" type="file" accept=".pem,.key,.txt,application/x-pem-file">
+         <textarea id="pem" name="pem" rows="3" placeholder="…or paste the contents of the .pem file here" spellcheck="false"></textarea>
+       </div>
+       <div id="plaid-fields" style="display:none">
+         <p>Register an application at the <a href="https://dashboard.plaid.com" target="_blank" rel="noopener">Plaid Dashboard</a> and copy its client id and secret here:</p>
+         <label for="plaid_client_id">Client id</label>
+         <input id="plaid_client_id" name="plaid_client_id" autocomplete="off" spellcheck="false" value="${esc(v.plaid_client_id ?? "")}">
+         <label for="plaid_secret">Secret</label>
+         <input id="plaid_secret" type="password" name="plaid_secret" autocomplete="off" spellcheck="false">
+         <label for="plaid_env">Environment</label>
+         <select id="plaid_env" name="plaid_env" style="width:100%;font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)">
+           <option value="sandbox" ${v.plaid_env !== "production" ? "selected" : ""}>Sandbox (test data)</option>
+           <option value="production" ${v.plaid_env === "production" ? "selected" : ""}>Production (real accounts)</option>
+         </select>
+       </div>
        <label for="country">Country of your banks</label>
        <input id="country" name="country" maxlength="2" placeholder="DK" value="${esc(v.country ?? "")}" style="width:6em;text-transform:uppercase">
        ${config.localMode ? "" : `<label for="password">Password (12+ characters, used when connecting your assistant)</label>
@@ -161,6 +243,17 @@ export function setupPage(opts: { error?: string; values?: { app_id?: string; co
          const f = e.target.files[0]; if (!f) return;
          const r = new FileReader(); r.onload = () => { document.getElementById("pem").value = r.result; }; r.readAsText(f);
        });
+       const ebFields = document.getElementById("eb-fields"), plaidFields = document.getElementById("plaid-fields");
+       function applyProvider(value) {
+         ebFields.style.display = value === "plaid" ? "none" : "";
+         plaidFields.style.display = value === "plaid" ? "" : "none";
+         document.getElementById("app_id").required = value !== "plaid";
+         document.getElementById("plaid_client_id").required = value === "plaid";
+         document.getElementById("plaid_secret").required = value === "plaid";
+       }
+       const providerRadios = document.querySelectorAll('input[name="provider"]');
+       for (const r of providerRadios) r.addEventListener("change", (e) => applyProvider(e.target.value));
+       applyProvider(document.querySelector('input[name="provider"]:checked').value);
      </script>`,
     { kind: "neutral", pill: "First run" },
   );

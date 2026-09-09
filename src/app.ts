@@ -7,9 +7,10 @@ import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middlew
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { config, isConfigured, setupProblems } from "./config.ts";
 import { eb, EnableBankingError } from "./enablebanking.ts";
+import { plaid, PlaidError } from "./plaid.ts";
 import { store } from "./store.ts";
 import { SingleUserProvider } from "./auth.ts";
-import { connectedPage, failedPage, loginPage, privacyPage, setupPage, signInFailedPage, statusPage, termsPage } from "./pages.ts";
+import { connectedPage, failedPage, loginPage, plaidLinkPage, privacyPage, setupPage, signInFailedPage, statusPage, termsPage } from "./pages.ts";
 import { applySetup, setupAvailable } from "./setup.ts";
 import { createServer, VERSION } from "./mcp.ts";
 import { startWatcher } from "./watcher.ts";
@@ -94,7 +95,18 @@ export function createApp(opts: AppOptions) {
     if (!setupAvailable()) return void res.status(404).type("html").send(failedPage("Setup is already complete."));
     const body = req.body as Record<string, string | undefined>;
     const error = applySetup(body);
-    if (error) return void res.status(400).set("Content-Security-Policy", setupCsp).type("html").send(setupPage({ error, values: { app_id: body.app_id, country: body.country }, baseUrl: config.baseUrl }));
+    if (error)
+      return void res
+        .status(400)
+        .set("Content-Security-Policy", setupCsp)
+        .type("html")
+        .send(
+          setupPage({
+            error,
+            values: { provider: body.provider, app_id: body.app_id, country: body.country, plaid_client_id: body.plaid_client_id, plaid_env: body.plaid_env },
+            baseUrl: config.baseUrl,
+          }),
+        );
     log("setup completed via the setup page");
     if (opts.remote) rememberPasswordFingerprint();
     startWatcherOnce();
@@ -171,6 +183,39 @@ export function createApp(opts: AppOptions) {
       failed(msg);
     }
   });
+
+  // --- Plaid Link (only reachable when provider is Plaid) ---
+
+  if (config.provider === "plaid") {
+    // GET /plaid/link?token=...&state=... — serves a page that loads Plaid's
+    // Link JS SDK and opens it with the link_token from the query string. No
+    // Enable Banking equivalent — this is the one part of the flow that has
+    // to happen client-side.
+    app.get("/plaid/link", (req, res) => {
+      const { token, state } = req.query as Record<string, string | undefined>;
+      if (!token || !state) return void res.status(400).type("html").send(failedPage("Missing Plaid link token."));
+      res.set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline' https://cdn.plaid.com; connect-src 'self' https://production.plaid.com https://sandbox.plaid.com; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
+      res.type("html").send(plaidLinkPage(token, state));
+    });
+
+    // POST /plaid/link/complete — called by the page above once Plaid Link
+    // succeeds, with the public_token it received.
+    app.post("/plaid/link/complete", express.json(), async (req, res) => {
+      const { public_token, state } = req.body as { public_token?: string; state?: string };
+      const pending = state ? store().takePendingAuth(state) : undefined;
+      if (!pending || !public_token) return void res.status(400).json({ error: "Unknown or expired authorization." });
+      try {
+        const session = await plaid.exchangePublicToken(public_token);
+        store().addSession(session);
+        log(`bank connected: ${session.aspsp.name}, ${session.accounts.length} account(s)`);
+        res.json({ ok: true });
+      } catch (err) {
+        const msg = err instanceof PlaidError ? `Plaid returned ${err.status}: ${err.body.slice(0, 300)}` : (err as Error).message;
+        log("plaid link failed", msg);
+        res.status(500).json({ error: msg });
+      }
+    });
+  }
 
   return Object.assign(app, { startWatcherOnce });
 }

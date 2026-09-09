@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config, isConfigured } from "./config.ts";
-import { eb, EnableBankingError } from "./enablebanking.ts";
+import { bank as eb, BankError as EnableBankingError } from "./bank.ts";
+// Enable-Banking-only: startAuthorization has no Plaid equivalent (see start_consent below).
+import { eb as enableBanking } from "./enablebanking.ts";
+import { plaid } from "./plaid.ts";
 import { pendingAuthIsLive, store, type StoredAccount, type WatchRule } from "./store.ts";
 import { daysAgo, daysLeft, describeAccount, isoDate, simplifyBalances, simplifyTransaction } from "./data.ts";
 import { runWatches } from "./watcher.ts";
@@ -115,9 +118,16 @@ export function registerTools(server: McpServer): void {
       const validUntil = new Date(Date.now() + maxSeconds * 1000 - 60_000);
       const state = randomUUID();
       store().addPendingAuth({ state, bank: { name: aspsp.name, country: aspsp.country }, started: new Date().toISOString() });
-      const auth = await eb.startAuthorization({ aspsp, state, redirectUrl: `${config.baseUrl}/callback`, validUntil, psuType: customer_type });
+      let url: string;
+      if (config.provider === "plaid") {
+        const { link_token } = await plaid.createLinkToken({ redirectUri: `${config.baseUrl}/plaid/link` });
+        url = `${config.baseUrl}/plaid/link?token=${encodeURIComponent(link_token)}&state=${encodeURIComponent(state)}`;
+      } else {
+        const auth = await enableBanking.startAuthorization({ aspsp, state, redirectUrl: `${config.baseUrl}/callback`, validUntil, psuType: customer_type });
+        url = auth.url;
+      }
       return json({
-        url: auth.url,
+        url,
         bank: aspsp.name,
         consent_valid_until: validUntil.toISOString().slice(0, 10),
         next: "Open the URL, log in at the bank and approve. Then call consent_status or list_accounts to confirm the accounts are linked.",

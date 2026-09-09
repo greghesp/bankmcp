@@ -14,6 +14,8 @@ export interface StoredSession {
   /** Last status reported by Enable Banking, if we have checked. */
   status?: string;
   expiry_notified?: boolean;
+  /** Plaid only: the Item's access_token. Never returned by any tool — see data.ts's describeAccount(). */
+  secret?: string;
 }
 
 export interface StoredAccount {
@@ -161,7 +163,7 @@ export class Store {
 
   // --- Sessions & accounts ---
 
-  addSession(session: { session_id: string; aspsp: { name: string; country: string }; psu_type: string; access: { valid_until: string }; accounts: Array<{ uid: string; name?: string; product?: string; currency: string; cash_account_type?: string; identification_hash: string; account_id?: { iban?: string; other?: { identification?: string } } }> }): void {
+  addSession(session: { session_id: string; aspsp: { name: string; country: string }; psu_type: string; access: { valid_until: string }; secret?: string; accounts: Array<{ uid: string; name?: string; product?: string; currency: string; cash_account_type?: string; identification_hash: string; account_id?: { iban?: string; other?: { identification?: string } } }> }): void {
     this.update((d) => {
       d.sessions[session.session_id] = {
         id: session.session_id,
@@ -170,6 +172,7 @@ export class Store {
         valid_until: session.access.valid_until,
         created: new Date().toISOString(),
         status: "AUTHORIZED",
+        secret: session.secret,
       };
       for (const a of session.accounts) {
         // A re-consent returns the same account under a new uid; carry the

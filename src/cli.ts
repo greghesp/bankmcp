@@ -4,7 +4,7 @@
 //   node src/cli.ts watch [--force]     → runs all watches once and prints what fired
 import { createInterface } from "node:readline";
 import { config, setupProblems } from "./config.ts";
-import { eb, EnableBankingError } from "./enablebanking.ts";
+import { bank as eb, BankError as EnableBankingError } from "./bank.ts";
 import { hashPassword } from "./auth.ts";
 import { store } from "./store.ts";
 import { daysLeft } from "./data.ts";

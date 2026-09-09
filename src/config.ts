@@ -17,6 +17,10 @@ export interface Settings {
   admin_password_hash?: string;
   country?: string;
   setup_completed?: string;
+  provider?: "enablebanking" | "plaid";
+  plaid_client_id?: string;
+  plaid_secret?: string;
+  plaid_env?: "sandbox" | "production";
 }
 
 const settingsPath = join(dataDir, "settings.json");
@@ -90,9 +94,23 @@ export const config = {
   // Unattended polling for watches: PSD2 allows at most four account accesses
   // per day without the account holder present.
   pollIntervalHours: Number(env.POLL_INTERVAL_HOURS ?? 6),
+  get provider(): "enablebanking" | "plaid" {
+    return (env.BANK_PROVIDER ?? settings.provider ?? "enablebanking") as "enablebanking" | "plaid";
+  },
+  get plaidClientId(): string {
+    return env.PLAID_CLIENT_ID ?? settings.plaid_client_id ?? "";
+  },
+  get plaidSecret(): string {
+    return env.PLAID_SECRET ?? settings.plaid_secret ?? "";
+  },
+  get plaidEnv(): "sandbox" | "production" {
+    return (env.PLAID_ENV ?? settings.plaid_env ?? "sandbox") as "sandbox" | "production";
+  },
   /** True when every secret came from the environment, so the setup page has nothing to do. */
   get lockedByEnv(): boolean {
-    return Boolean(env.EB_APP_ID && (env.EB_PRIVATE_KEY || env.EB_PRIVATE_KEY_PATH) && (localMode || env.ADMIN_PASSWORD_HASH || env.ADMIN_PASSWORD));
+    const hasPassword = localMode || Boolean(env.ADMIN_PASSWORD_HASH || env.ADMIN_PASSWORD);
+    if ((env.BANK_PROVIDER ?? "enablebanking") === "plaid") return Boolean(env.PLAID_CLIENT_ID && env.PLAID_SECRET && hasPassword);
+    return Boolean(env.EB_APP_ID && (env.EB_PRIVATE_KEY || env.EB_PRIVATE_KEY_PATH) && hasPassword);
   },
 };
 
@@ -106,15 +124,20 @@ export const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[
 /** Human-readable list of what is still missing before the server can talk to banks. */
 export function setupProblems(): string[] {
   const problems: string[] = [];
-  if (!config.appId) problems.push("Enable Banking application id is not set");
-  else if (!looksLikeUuid.test(config.appId)) problems.push("EB_APP_ID does not look like a UUID");
-  if (!config.privateKey && !config.privateKeyPath) problems.push("Enable Banking private key is not set");
-  else {
-    try {
-      const pem = readPrivateKey();
-      if (!/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(pem)) problems.push("The private key is not a PEM file (expected -----BEGIN PRIVATE KEY-----)");
-    } catch (err) {
-      problems.push(`Cannot read private key: ${(err as Error).message}`);
+  if (config.provider === "plaid") {
+    if (!config.plaidClientId) problems.push("Plaid client id is not set");
+    if (!config.plaidSecret) problems.push("Plaid secret is not set");
+  } else {
+    if (!config.appId) problems.push("Enable Banking application id is not set");
+    else if (!looksLikeUuid.test(config.appId)) problems.push("EB_APP_ID does not look like a UUID");
+    if (!config.privateKey && !config.privateKeyPath) problems.push("Enable Banking private key is not set");
+    else {
+      try {
+        const pem = readPrivateKey();
+        if (!/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(pem)) problems.push("The private key is not a PEM file (expected -----BEGIN PRIVATE KEY-----)");
+      } catch (err) {
+        problems.push(`Cannot read private key: ${(err as Error).message}`);
+      }
     }
   }
   if (!localMode && !config.adminPasswordHash && !config.adminPassword) problems.push("Admin password is not set");

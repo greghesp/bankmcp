@@ -130,6 +130,18 @@ appears:
 | `DEFAULT_COUNTRY` | your country code, e.g. `DK` |
 | `APP_NAME` | optional, the name shown on the sign-in and status pages (default `BankMCP™`) |
 
+Prefer [Plaid](https://plaid.com) instead — better UK coverage, worse EU
+coverage — set `BANK_PROVIDER=plaid` plus:
+
+| Variable | Value |
+|---|---|
+| `PLAID_CLIENT_ID` | from the Plaid dashboard |
+| `PLAID_SECRET` | the secret for your chosen environment |
+| `PLAID_ENV` | `sandbox` or `production` (default `sandbox`) |
+
+Only one provider runs at a time; the setup page lets you choose instead of
+setting `BANK_PROVIDER` if you are not using environment configuration.
+
 Optional: `NOTIFY_WEBHOOK_URL` for watch notifications and sign-in alerts (a
 Slack incoming webhook works). Full list in [.env.example](.env.example).
 `npm run check` verifies a configuration from a terminal.
