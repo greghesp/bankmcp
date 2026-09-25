@@ -1,0 +1,175 @@
+{
+ "bpm": 120.4097525909064,
+ "beat": 0.49829850746268645,
+ "start": 16.317536839611467,
+ "duration": 13.952358208955221,
+ "first_beat": 0.37198460080550083,
+ "downbeat_position": 0,
+ "n_beats": 66,
+ "song": "audio/placeholder_120.wav",
+ "sounds": [
+  {
+   "t": 0.5,
+   "video_t": 0.4983,
+   "sound": "click",
+   "peak_ms": 0.0
+  },
+  {
+   "t": 1.0,
+   "video_t": 0.9966,
+   "sound": "tick",
+   "peak_ms": 0.0
+  },
+  {
+   "t": 1.5,
+   "video_t": 1.4949,
+   "sound": "chime",
+   "peak_ms": 72.43
+  },
+  {
+   "t": 2.0,
+   "video_t": 1.9932,
+   "sound": "tap",
+   "peak_ms": 2.4
+  },
+  {
+   "t": 2.5,
+   "video_t": 2.4915,
+   "sound": "click",
+   "peak_ms": 0.0
+  },
+  {
+   "t": 3.0,
+   "video_t": 2.9898,
+   "sound": "click",
+   "peak_ms": 0.43
+  },
+  {
+   "t": 3.5,
+   "video_t": 3.4881,
+   "sound": "grab",
+   "peak_ms": 0.07
+  },
+  {
+   "t": 4.5,
+   "video_t": 4.4847,
+   "sound": "release",
+   "peak_ms": 0.02
+  },
+  {
+   "t": 5.0,
+   "video_t": 4.983,
+   "sound": "tap",
+   "peak_ms": 2.4
+  },
+  {
+   "t": 5.5,
+   "video_t": 5.4813,
+   "sound": "grab",
+   "peak_ms": 0.2
+  },
+  {
+   "t": 6.0,
+   "video_t": 5.9796,
+   "sound": "thud",
+   "peak_ms": 2.02
+  },
+  {
+   "t": 6.5,
+   "video_t": 6.4779,
+   "sound": "release",
+   "peak_ms": 0.86
+  },
+  {
+   "t": 7.0,
+   "video_t": 6.9762,
+   "sound": "tap",
+   "peak_ms": 2.4
+  },
+  {
+   "t": 7.5,
+   "video_t": 7.4745,
+   "sound": "toggle",
+   "peak_ms": 0.25
+  },
+  {
+   "t": 8.0,
+   "video_t": 7.9728,
+   "sound": "tap",
+   "peak_ms": 2.4
+  },
+  {
+   "t": 8.5,
+   "video_t": 8.4711,
+   "sound": "click",
+   "peak_ms": 0.18
+  },
+  {
+   "t": 9.0,
+   "video_t": 8.9694,
+   "sound": "tap",
+   "peak_ms": 2.4
+  },
+  {
+   "t": 9.5,
+   "video_t": 9.4677,
+   "sound": "tick",
+   "peak_ms": 0.0
+  },
+  {
+   "t": 10.0,
+   "video_t": 9.966,
+   "sound": "hover",
+   "peak_ms": 0.0
+  },
+  {
+   "t": 10.5,
+   "video_t": 10.4643,
+   "sound": "hover",
+   "peak_ms": 0.0
+  },
+  {
+   "t": 11.0,
+   "video_t": 10.9626,
+   "sound": "click",
+   "peak_ms": 0.0
+  },
+  {
+   "t": 11.5,
+   "video_t": 11.4609,
+   "sound": "key",
+   "peak_ms": 0.82
+  },
+  {
+   "t": 11.75,
+   "video_t": 11.71,
+   "sound": "key",
+   "peak_ms": 0.0
+  },
+  {
+   "t": 12.0,
+   "video_t": 11.9592,
+   "sound": "key",
+   "peak_ms": 0.0
+  },
+  {
+   "t": 12.5,
+   "video_t": 12.4575,
+   "sound": "click",
+   "peak_ms": 0.0
+  },
+  {
+   "t": 13.0,
+   "video_t": 12.9558,
+   "sound": "pop",
+   "peak_ms": 3.08
+  },
+  {
+   "t": 13.5,
+   "video_t": 13.4541,
+   "sound": "tap",
+   "peak_ms": 2.4
+  }
+ ],
+ "time_scale": 0.9965970149253729
+}

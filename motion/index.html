@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shape Morph</title>
+<style>
+@font-face { font-family: Geist; src: url(fonts/Geist-Variable.woff2) format("woff2"); font-weight: 100 900; }
+:root { --canvas: #ECE9E4; }
+html, body { margin: 0; width: 1440px; height: 1440px; overflow: hidden; background: var(--canvas); }
+body { font-family: Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; color: #111; }
+#stage { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+#shape { position: absolute; overflow: hidden; box-shadow: 0 1px 2px rgba(20,18,14,.06), 0 10px 30px -10px rgba(20,18,14,.18); }
+#origin { position: absolute; width: 0; height: 0; }
+.g, .p { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.t { position: absolute; white-space: nowrap; line-height: 1; transform: translateY(-50%); }
+.c { position: absolute; transform: translate(-50%, -50%); }
+.ico { position: absolute; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+#knob, #art, #tabsTrack { position: absolute; }
+#knob { overflow: hidden; }
+.tnum { font-variant-numeric: tabular-nums; }
+#cursor { position: absolute; left: 0; top: 0; width: 40px; height: 56px; transform-origin: 3px 3px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="shape">
+    <div id="origin">
+      <div id="tabsTrack"></div>
+
+      <!-- player: progress track, times, titles, play button -->
+      <div class="g" id="gPlayer">
+        <div id="pTrack" style="position:absolute;left:-186px;top:37.5px;width:372px;height:5px;border-radius:3px;background:rgba(255,255,255,.18)"></div>
+        <div id="pFill" style="position:absolute;left:-186px;top:37.5px;height:5px;border-radius:3px;background:#fff"></div>
+        <div class="t tnum" id="pEl" style="left:-186px;top:66px;font-size:13px;color:#8E8E8E;font-weight:500"></div>
+        <div class="t tnum" id="pRem" style="left:186px;top:66px;font-size:13px;color:#8E8E8E;font-weight:500;transform:translate(-100%,-50%)"></div>
+        <div class="t" style="left:-94px;top:-52px;font-size:20px;font-weight:600;color:#fff;letter-spacing:-.01em">Midnight Drive</div>
+        <div class="t" style="left:-94px;top:-26px;font-size:15px;font-weight:450;color:#8E8E8E">Lumen</div>
+        <div class="c" id="playBtn" style="left:158px;top:-38px;width:56px;height:56px;border-radius:28px;background:#fff">
+          <svg viewBox="0 0 22 22" width="22" height="22" style="position:absolute;left:17px;top:17px;overflow:visible">
+            <path id="pp1" fill="#0C0C0C" stroke="#0C0C0C" stroke-width="1.6" stroke-linejoin="round"/>
+            <path id="pp2" fill="#0C0C0C" stroke="#0C0C0C" stroke-width="1.6" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- volume slider -->
+      <div class="g" id="gSlider">
+        <svg class="ico" viewBox="0 0 24 24" width="22" height="22" style="left:-167px;top:-11px;color:#0C0C0C">
+          <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>
+          <path id="w1" d="M15.5 9.2a4 4 0 0 1 0 5.6"/>
+          <path id="w2" d="M18.2 6.6a7.6 7.6 0 0 1 0 10.8"/>
+        </svg>
+        <div id="vTrack" style="position:absolute;left:-126px;top:-3px;height:6px;border-radius:3px;background:#E4E1DC"></div>
+        <div id="vFill" style="position:absolute;left:-126px;top:-3px;height:6px;border-radius:3px;background:#0C0C0C"></div>
+      </div>
+
+      <!-- chart card -->
+      <div class="g" id="gChart">
+        <div class="t" style="left:-212px;top:66px;font-size:14px;font-weight:500;color:#8A8781">Total revenue</div>
+        <div class="t" style="left:-213px;top:102px;font-size:38px;font-weight:600;letter-spacing:-.025em;color:#111">$61.9k</div>
+        <div class="t" style="left:-78px;top:106px;font-size:15px;font-weight:550;color:#2F6BFF">+18.2%</div>
+        <div class="c" style="left:186px;top:80px;width:52px;height:32px;border-radius:10px;box-shadow:inset 0 0 0 1.5px #E2DFDA"></div>
+        <div id="kChip" class="c" style="left:186px;top:80px;width:52px;height:32px;border-radius:10px;background:#0C0C0C;opacity:0"></div>
+        <div class="c" id="kChipTxt" style="left:186px;top:80px;font-size:14px;font-weight:500;color:#5E5C58">⌘K</div>
+        <svg id="chartSvg" viewBox="-236 -50 472 440" width="472" height="440" style="position:absolute;left:-236px;top:-50px;overflow:visible">
+          <g stroke="#EDEBE7" stroke-width="1">
+            <line x1="-212" x2="212" y1="150" y2="150"/><line x1="-212" x2="212" y1="210" y2="210"/>
+            <line x1="-212" x2="212" y1="270" y2="270"/><line x1="-212" x2="212" y1="330" y2="330"/>
+          </g>
+          <clipPath id="areaClip"><rect id="areaClipRect" x="-214" y="100" height="240" width="0"/></clipPath>
+          <path id="area" fill="#2F6BFF" fill-opacity=".08" clip-path="url(#areaClip)"/>
+          <line id="guide" y1="150" y2="330" stroke="#D5D2CC" stroke-width="1"/>
+          <path id="line" fill="none" stroke="#2F6BFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+          <circle id="dot" r="5.5" fill="#fff" stroke="#2F6BFF" stroke-width="2.5"/>
+          <g font-family="Geist" font-size="12" font-weight="500" fill="#A19E98">
+            <text x="-212" y="360">Jan</text><text id="mApr" y="360">Apr</text><text id="mJul" y="360">Jul</text><text id="mOct" y="360">Oct</text>
+          </g>
+        </svg>
+        <div id="tip" style="position:absolute;width:0;height:0">
+          <div class="c" id="tipBox" style="top:0;left:0;width:92px;height:48px;border-radius:12px;background:#0C0C0C"></div>
+          <div class="c" id="tipA" style="top:0;left:0;text-align:center;line-height:1.15"><div style="font-size:15px;font-weight:600;color:#fff" class="tnum">$48.2k</div><div style="font-size:12px;font-weight:500;color:#9A9A9A">Jul</div></div>
+          <div class="c" id="tipB" style="top:0;left:0;text-align:center;line-height:1.15"><div style="font-size:15px;font-weight:600;color:#fff" class="tnum">$61.9k</div><div style="font-size:12px;font-weight:500;color:#9A9A9A">Nov</div></div>
+        </div>
+      </div>
+
+      <div id="art"><div id="artDot" style="position:absolute;border-radius:50%;background:#0C0C0C"></div></div>
+
+      <div id="knob">
+        <svg class="ico" id="kArrow" viewBox="0 0 24 24" width="20" height="20" style="color:#0C0C0C"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <svg class="ico" id="kCheck" viewBox="0 0 24 24" width="18" height="18" style="color:#fff;stroke-width:2.2"><path id="kCheckPath" d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg>
+      </div>
+
+      <!-- labels that sit on top of the knob -->
+      <div class="g" id="gTabs">
+        <div class="t tab" style="left:-142.67px;top:0;font-size:17px;font-weight:500;transform:translate(-50%,-50%)">Overview</div>
+        <div class="t tab" style="left:0;top:0;font-size:17px;font-weight:500;transform:translate(-50%,-50%)">Revenue</div>
+        <div class="t tab" style="left:142.67px;top:0;font-size:17px;font-weight:500;transform:translate(-50%,-50%)">Users</div>
+      </div>
+
+      <div class="g" id="gButton"><div class="t" style="left:-84px;top:0;font-size:18px;font-weight:500;color:#fff;letter-spacing:-.005em">Get started</div></div>
+
+      <div class="g" id="gLoader">
+        <svg viewBox="-36 -36 72 72" width="72" height="72" style="position:absolute;left:-36px;top:-36px;overflow:visible">
+          <circle r="19" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="3.5"/>
+          <circle id="arc" r="19" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" pathLength="1"/>
+        </svg>
+      </div>
+      <div class="g" id="gCheck">
+        <svg class="ico" viewBox="0 0 24 24" width="30" height="30" style="left:-15px;top:-15px;color:#fff;stroke-width:2.2"><path id="bigCheck" d="M5 12.5l4.5 4.5L19 7.5" pathLength="1"/></svg>
+      </div>
+
+      <div class="g" id="gIsland">
+        <div class="t" style="left:-92px;top:0;font-size:15px;font-weight:500;color:#fff">Midnight Drive</div>
+        <div id="bars"></div>
+      </div>
+
+      <div class="g" id="gPalette">
+        <svg class="ico" viewBox="0 0 24 24" width="20" height="20" style="left:-232px;top:10px;color:#8A8781"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+        <div class="t" id="qPh" style="left:-198px;top:20px;font-size:19px;font-weight:400;color:#A3A09A">Search commands…</div>
+        <div class="t" id="qTxt" style="left:-198px;top:20px;font-size:19px;font-weight:450;color:#111"></div>
+        <div id="caret" style="position:absolute;top:8px;width:2px;height:24px;border-radius:1px;background:#2F6BFF"></div>
+        <div class="c" style="left:208px;top:20px;padding:5px 7px;border-radius:7px;box-shadow:inset 0 0 0 1.5px #E4E1DC;font-size:12px;font-weight:500;color:#8F8C86">esc</div>
+        <div style="position:absolute;left:-250px;top:52px;width:500px;height:1px;background:#EEECE8"></div>
+        <div id="rows"></div>
+      </div>
+
+      <div class="g" id="gToast">
+        <div class="t" style="left:-90px;top:0;font-size:17px;font-weight:500;color:#fff">Link copied</div>
+        <div class="t" style="left:126px;top:0;font-size:15px;font-weight:500;color:#8E8E8E;transform:translate(-100%,-50%)">Undo</div>
+      </div>
+    </div>
+  </div>
+</div>
+<svg id="cursor" viewBox="0 0 24 34"><path d="M3 3 L3 26.5 L8.6 21.2 L12.4 30.2 L16.3 28.6 L12.6 19.8 L20.2 19.8 Z" fill="#0C0C0C" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></svg>
+
+<script>
+// ---------- time + springs --------------------------------------------------
+// Everything is a pure function of t. T is the loop length in seconds at 120 BPM.
+const T = 14;
+const mod = t => ((t % T) + T) % T;
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, u) => a + (b - a) * u;
+
+// Closed-form step response of a damped spring (0 -> 1).
+function S(tau, w, z) {
+  if (tau <= 0) return 0;
+  if (z >= 1) return 1 - Math.exp(-w * tau) * (1 + w * tau);
+  const wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * tau) * (Math.cos(wd * tau) + (z * w / wd) * Math.sin(wd * tau));
+}
+
+// A value that changes target many times is the sum of one spring per change.
+// It is periodic: the previous loop's springs are still settling at t = 0.
+class Track {
+  constructor(v0, w = 16, z = 0.86) { this.v0 = v0; this.w = w; this.z = z; this.k = []; this.ov = []; }
+  to(t, v, w, z) { this.k.push({ t, v, w: w ?? this.w, z: z ?? this.z }); return this; }
+  set(t, v) { return this.to(t, v, 420, 1); }            // snap, only while hidden
+  last() { return this.k.length ? this.k[this.k.length - 1].v : this.v0; }
+  done() {
+    this.k.sort((a, b) => a.t - b.t);
+    let p = this.v0;
+    for (const k of this.k) { k.d = k.v - p; p = k.v; }
+    if (Math.abs(p - this.v0) > 1e-6) console.warn('track does not loop', this.v0, p);
+  }
+  base(t) {
+    t = mod(t);
+    let s = this.v0;
+    for (const k of this.k) s += k.d * (S(t - k.t, k.w, k.z) + S(t - k.t + T, k.w, k.z) - 1);
+    return s;
+  }
+  // Direct manipulation: fn(t) owns the value inside [t0, t1]; afterwards it
+  // springs back to the base from wherever it was released.
+  over(t0, t1, fn, w, z) { this.ov.push({ t0, t1, fn, w: w ?? this.w, z: z ?? this.z }); return this; }
+  at(t) {
+    t = mod(t);
+    let b = this.base(t);
+    for (const o of this.ov) {
+      if (t < o.t0) continue;
+      if (t <= o.t1) return o.fn(t);
+      b += (o.fn(o.t1) - this.base(o.t1)) * (1 - S(t - o.t1, o.w, o.z));
+    }
+    return b;
+  }
+}
+const ALL = [];
+const tr = (v0, w, z) => { const x = new Track(v0, w, z); ALL.push(x); return x; };
+class CTrack {
+  constructor(c, w = 14, z = 1) { this.ch = c.map(v => tr(v, w, z)); }
+  to(t, c, w, z) { c.forEach((v, i) => this.ch[i].to(t, v, w, z)); return this; }
+  set(t, c) { return this.to(t, c, 420, 1); }
+  at(t) { return this.ch.map(x => x.at(t)); }
+  css(t) { const [r, g, b, a] = this.at(t); return `rgba(${r.toFixed(1)},${g.toFixed(1)},${b.toFixed(1)},${clamp(a).toFixed(3)})`; }
+}
+
+// ---------- palette ----------------------------------------------------------
+const BLACK = [12, 12, 12, 1], WHITE = [255, 255, 255, 1], ACC = [47, 107, 255, 1],
+      OFF = [214, 210, 203, 1], HL = [239, 237, 233, 1], TXT = [28, 27, 25, 1];
+
+// ---------- the one shape --------------------------------------------------
+const SX = tr(0), SY = tr(0), SW = tr(220), SH = tr(64), SR = tr(32), SC = new CTrack(BLACK);
+const SP = tr(1, 40, 0.8);                                   // press scale
+function shape(t, cx, cy, w, h, r, col, wv = 16, zv = 0.86) {
+  SX.to(t, cx, wv, zv); SY.to(t, cy, wv, zv); SW.to(t, w, wv, zv); SH.to(t, h, wv, zv); SR.to(t, r, wv, zv);
+  if (col) SC.to(t, col);
+}
+function press(track, t, down, dur = 0.1) { track.to(t, down); track.to(t + dur, 1); }
+
+// ---------- the knob: arrow circle -> playhead -> handle -> toggle -> tab -> row -> check
+// Left/right (and top/bottom) edges ride different springs: the leading edge
+// is stiff, the trailing edge soft, so it stretches in the direction of travel.
+const KL = tr(54, 18), KR = tr(102, 18), KT = tr(-24, 18), KB = tr(24, 18), KRad = tr(24, 18), KC = new CTrack(WHITE);
+function knob(t, cx, cy, w, h, r, col, k = 1) {
+  const pcx = (KL.last() + KR.last()) / 2, pcy = (KT.last() + KB.last()) / 2;
+  const dx = cx - pcx, dy = cy - pcy;
+  const F = [24 * k, 0.8], L = [12.5 * k, 0.92], M = [18 * k, 0.86];
+  const hl = dx > 2 ? L : dx < -2 ? F : M, hr = dx > 2 ? F : dx < -2 ? L : M;
+  const ht = dy > 2 ? L : dy < -2 ? F : M, hb = dy > 2 ? F : dy < -2 ? L : M;
+  KL.to(t, cx - w / 2, ...hl); KR.to(t, cx + w / 2, ...hr);
+  KT.to(t, cy - h / 2, ...ht); KB.to(t, cy + h / 2, ...hb);
+  KRad.to(t, r);
+  if (col) KC.to(t, col);
+}
+function knobSnap(t, cx, cy) {                               // reposition while invisible
+  KL.set(t, cx); KR.set(t, cx); KT.set(t, cy); KB.set(t, cy);
+}
+function knobShiftX(t0, t1, desired) {
+  const sh = t => desired(t) - (KL.base(t) + KR.base(t)) / 2;
+  KL.over(t0, t1, t => KL.base(t) + sh(t)); KR.over(t0, t1, t => KR.base(t) + sh(t));
+}
+
+// ---------- artwork (island + player) ----------------------------------------
+const AX = tr(-120), AY = tr(0), AS = tr(0), AR = tr(10);
+
+// ---------- camera ------------------------------------------------------------
+const CamX = tr(0, 8.5, 1), CamY = tr(0, 8.5, 1), CamS = tr(Math.log(3.8), 8.5, 1);
+function cam(t, x, y, s) { CamX.to(t, x); CamY.to(t, y); CamS.to(t, Math.log(s)); }
+
+// ---------- cursor ------------------------------------------------------------
+const CX = tr(80, 13, 1), CY = tr(8, 13, 1), CP = tr(1, 45, 0.8);
+function cur(t, x, y) { CX.to(t, x); CY.to(t, y); }
+function click(t) { press(CP, t, 0.82, 0.1); }
+function hold(t0, t1) { CP.to(t0, 0.82); CP.to(t1, 1); }
+
+// ---------- one-shot progress values -----------------------------------------
+const ARC = tr(0, 10, 1), CHK = tr(0, 14, 1), PP = tr(0, 22, 0.8), PB = tr(1, 40, 0.8),
+      DRAW = tr(0, 6.5, 1), TIPX = tr(0, 17, 0.86), TCHK = tr(0, 14, 1), ROWC = new CTrack(TXT),
+      CHIP = tr(0, 40, 1), TRK = tr(0, 16, 1);
+
+// ---------- chart data --------------------------------------------------------
+const DATA = [22, 26, 24.5, 31, 29, 36, 48.2, 44, 51, 49, 61.9, 58];
+const px = i => -212 + 424 * i / 11, py = v => 330 - v / 70 * 180;
+TIPX.v0 = px(6);
+
+// ---------- palette rows ------------------------------------------------------
+const ROWS = [
+  ['New project', '⌘N', '<path d="M12 5v14M5 12h14"/>'],
+  ['Share link', '⌘L', '<path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/>'],
+  ['Show sidebar', '⌘B', '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M9.5 4.5v15"/>'],
+  ['Settings', '⌘,', '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>'],
+  ['Switch theme', '⌘T', '<path d="M19.5 14.2A7.8 7.8 0 1 1 9.8 4.5a6.2 6.2 0 0 0 9.7 9.7z"/>'],
+];
+const rowY = i => 85 + 48 * i;
+const RY = ROWS.map((_, i) => tr(rowY(i), 18, 0.86));
+const RHIDE = [11.5, null, 12.0, 11.75, 11.75];              // when each row is filtered out
+
+// =============================================================================
+// Timeline — 120 BPM, one beat = 0.5 s, 7 bars = 28 beats = 14 s
+// =============================================================================
+// 1.2  0.5  click the button -> it collapses into the loader
+click(0.5); press(SP, 0.5, 0.96, 0.1);
+shape(0.6, 0, 0, 72, 72, 36);
+knob(0.52, 78, 0, 0, 0, 0, null, 1.6);   // collapses in place, clipped by the shrinking shape
+cam(0.6, 0, 0, 6.2);
+cur(0.62, 96, 46);
+// 1.3 1.0  loader arc advances
+ARC.to(0.62, 0.2); ARC.to(1.0, 0.62); ARC.to(1.42, 1.0); ARC.set(2.4, 0);
+// 1.4 1.5  done -> accent + check
+SC.to(1.5, ACC); CHK.to(1.5, 1); CHK.set(2.6, 0);
+// 2.1 2.0  dynamic island
+shape(2.0, 0, 0, 300, 60, 30, BLACK);
+AS.to(2.0, 36); AR.to(2.0, 10);
+cam(2.0, 0, 0, 3.4);
+cur(2.08, 64, 12);
+// 2.2 2.5  click the island -> music player
+click(2.5); press(SP, 2.5, 0.97, 0.1);
+shape(2.6, 0, 0, 420, 200, 36);
+AX.to(2.6, -148); AY.to(2.6, -38); AS.to(2.6, 76); AR.to(2.6, 14);
+const P0 = 0.30, RATE = 0.012, TRACKW = 372;
+knobSnap(2.0, -186 + TRACKW * P0, 40);
+knob(2.6, -186 + TRACKW * P0, 40, 14, 14, 7, WHITE);
+cam(2.6, 0, 0, 2.6);
+cur(2.62, 158, -36);
+// 2.3 3.0  play -> pause morph
+click(3.0); PP.to(3.0, 1); PP.set(6.2, 0); press(PB, 3.0, 0.9, 0.1);
+cur(3.08, -186 + TRACKW * (P0 + RATE * 0.5), 41);
+// 2.4 3.5  grab the playhead ... 3.1 4.0 scrub ... 3.2 4.5 release
+hold(3.5, 4.5);
+knob(3.5, -186 + TRACKW * P0, 40, 22, 22, 11);
+cam(3.5, 0, 20, 2.85);
+cur(3.52, -186 + TRACKW * 0.745, 43);
+cur(3.98, -186 + TRACKW * 0.70, 40);
+knob(4.5, -186 + TRACKW * P0, 40, 14, 14, 7);
+cur(4.6, 120, 92);
+function pRaw(t) {
+  t = mod(t);
+  if (t < 3) return P0;
+  if (t < 3.5) return P0 + RATE * (t - 3);
+  if (t <= 4.5) return clamp(P0 + RATE * 0.5 + (CX.at(t) - CX.at(3.5)) / TRACKW);
+  return pRaw(4.5) + RATE * (Math.min(t, 5.0) - 4.5);
+}
+knobShiftX(3.0, 5.0, t => -186 + TRACKW * pRaw(t));
+// 3.3 5.0  player -> volume slider
+const V0 = 0.42, VL = -126, VW = 288, trackX = v => VL + VW * v;
+shape(5.0, 0, 0, 380, 72, 36, WHITE);
+AX.to(5.0, -156); AY.to(5.0, 0); AS.to(5.0, 0); AR.to(5.0, 4);
+AX.set(6.2, -120); AY.set(6.2, 0); AR.set(6.2, 10);
+knob(5.0, trackX(V0), 0, 24, 24, 12, BLACK);
+cam(5.0, 0, 0, 2.9);
+cur(5.02, trackX(V0), 2);
+// 3.4 5.5  grab ... 4.1 6.0 past max, stretch ... 4.2 6.5 release
+hold(5.5, 6.5);
+knob(5.5, trackX(1), 0, 30, 30, 15);
+knob(6.5, trackX(1), 0, 24, 24, 12);
+cam(5.6, 44, 0, 2.9);
+cur(5.52, 196, 4);
+cur(5.86, 266, 7);
+cur(6.56, 70, 52);
+function vRaw(t) {
+  t = mod(t);
+  if (t < 5.5) return V0;
+  return V0 + (CX.at(Math.min(t, 6.5)) - CX.at(5.5)) / VW;
+}
+const stretch = t => { const over = Math.max(0, vRaw(t) - 1) * VW; return 120 * (1 - Math.exp(-over / 130)); };
+knobShiftX(5.5, 6.5, t => trackX(clamp(vRaw(t))) + stretch(t));
+SW.over(5.5, 6.5, t => SW.base(t) + stretch(t));
+SX.over(5.5, 6.5, t => SX.base(t) + stretch(t) / 2);
+SH.over(5.5, 6.5, t => SH.base(t) - stretch(t) * 0.14);
+TRK.over(5.5, 6.5, t => stretch(t));
+// 4.3 7.0  slider -> toggle
+shape(7.0, 0, 0, 120, 68, 34, OFF);
+knob(7.0, -26, 0, 56, 56, 28, WHITE);
+cam(7.0, 0, 0, 6.0);
+cur(7.06, 4, 8);
+// 4.4 7.5  toggle flips on
+click(7.5);
+knob(7.5, 26, 0, 56, 56, 28);
+SC.to(7.5, ACC);
+// 5.1 8.0  toggle -> tabs, knob -> indicator
+const TABW = 428 / 3;
+shape(8.0, 0, 0, 440, 68, 34, WHITE);
+knob(8.0, -TABW, 0, TABW, 56, 28, BLACK);
+cam(8.0, 0, 0, 2.85);
+cur(8.06, 8, 12);
+// 5.2 8.5  click Revenue
+click(8.5);
+knob(8.5, 0, 0, TABW, 56, 28);
+// 5.3 9.0  tabs open into a card
+shape(9.0, 0, 170, 472, 440, 32);
+cam(9.0, 0, 170, 2.7);
+cur(8.62, 64, 52);
+// 5.4 9.5  line draws itself
+DRAW.to(9.45, 1); DRAW.set(12.2, 0);
+// 6.1 10.0  hover tooltip ... 6.2 10.5 move to the peak
+cur(9.55, px(6) + 4, 238);
+cur(9.98, px(10) + 4, 206);
+TIPX.to(10.2, px(10), 17, 0.86); TIPX.set(12.2, px(6));
+// 6.3 11.0  click ⌘K -> palette
+cur(10.55, 186, 82);
+click(11.0); CHIP.to(11.0, 1); CHIP.set(12.2, 0);
+const palH = n => 81 + 48 * n, palTop = -12;
+shape(11.0, 0, palTop + palH(5) / 2, 500, palH(5), 22);
+knob(11.0, 0, rowY(0), 484, 48, 12, HL);
+cam(11.0, 0, palTop + palH(5) / 2, 2.55);
+cur(11.1, 160, 262);
+// 6.4 11.5 / 11.75 / 7.1 12.0  type "sha" — rows filter out
+const QKEYS = [[11.5, 's'], [11.75, 'h'], [12.0, 'a']];
+[[11.5, 4], [11.75, 2], [12.0, 1]].forEach(([t, n]) => {
+  shape(t + 0.03, 0, palTop + palH(n) / 2, 500, palH(n), 22, null, 18, 0.86);
+  cam(t + 0.03, 0, palTop + palH(n) / 2, 2.55 + (5 - n) * 0.05);
+});
+[1, 2, 3, 4].forEach(i => RY[i].to(11.5, rowY(i - 1)));
+RY.forEach((r, i) => r.set(13.2, rowY(i)));
+cur(12.04, -60, 90);
+// 7.2 12.5  enter on "Share link"
+click(12.5); KC.to(12.5, BLACK, 30, 1); ROWC.to(12.5, WHITE, 30, 1); ROWC.set(13.2, TXT);
+// 7.3 13.0  palette collapses into a toast
+shape(12.62, 0, 0, 300, 64, 32, BLACK);
+knob(12.62, -118, 0, 32, 32, 16, ACC, 1.5);
+cam(12.66, 0, 0, 3.7);
+cur(12.66, 112, 62);
+TCHK.to(13.0, 1); TCHK.set(13.95, 0);
+// 7.4 13.5  toast -> button, cursor heads back to where frame 0 has it
+shape(13.5, 0, 0, 220, 64, 32);
+knob(13.5, 78, 0, 48, 48, 24, WHITE);
+cam(13.5, 0, 0, 3.8);
+cur(13.3, 80, 8);
+
+ALL.forEach(x => x.done());
+
+// ---------- content windows: [in, out] with their own enter/exit timing -------
+function vis1(u, a, b) { const e = S(u - a, 17, 1), x = S(u - b, 32, 1); return { e, x, o: e * (1 - x) }; }
+function vis(t, a, b) { t = mod(t); const p = vis1(t, a, b), q = vis1(t + T, a, b); return p.o >= q.o ? p : q; }
+const WIN = {
+  gButton: [13.62, 14.52], gLoader: [0.66, 1.52], gCheck: [1.5, 2.02], gIsland: [2.1, 2.52],
+  gPlayer: [2.7, 5.0], gSlider: [5.1, 7.0], gTabs: [8.06, 11.0], gChart: [9.1, 11.0],
+  gPalette: [11.1, 12.66], gToast: [12.76, 13.5], kArrow: [13.62, 14.55], kCheck: [12.95, 13.5],
+  tip: [10.0, 10.95], tipA: [10.0, 10.2], tipB: [10.22, 10.95], tabsTrack: [9.04, 11.0],
+};
+const ORIGIN = { gButton: [0, 0], gLoader: [0, 0], gCheck: [0, 0], gIsland: [0, 0], gPlayer: [0, 0],
+  gSlider: [0, 0], gTabs: [0, 0], gChart: [0, 170], gPalette: [0, 150], gToast: [0, 0] };
+function applyVis(el, v, blur = 4, sc = 0.03) {
+  el.style.opacity = v.o.toFixed(4);
+  const b = blur * (1 - v.e) + blur * v.x;
+  el.style.filter = b > 0.05 && v.o > 0.001 ? `blur(${b.toFixed(2)}px)` : 'none';
+  el.style.visibility = v.o < 0.002 ? 'hidden' : 'visible';
+  return 1 - sc * (1 - v.e) - sc * 0.5 * v.x;
+}
+
+// ---------- build dynamic bits ---------------------------------------------
+const $ = id => document.getElementById(id);
+const bars = $('bars');
+for (let i = 0; i < 4; i++) {
+  const d = document.createElement('div');
+  d.style.cssText = `position:absolute;left:${108 + i * 6.5}px;width:3.5px;border-radius:2px;background:#2F6BFF`;
+  bars.appendChild(d);
+}
+const rowsEl = $('rows');
+const rowEls = ROWS.map(([label, key, icon]) => {
+  const r = document.createElement('div');
+  r.className = 'p';
+  r.innerHTML = `<svg class="ico" viewBox="0 0 24 24" width="20" height="20" style="left:-232px;top:-10px">${icon}</svg>
+    <div class="t" style="left:-198px;top:0;font-size:16px;font-weight:450">${label}</div>
+    <div class="t" style="left:226px;top:0;font-size:13px;font-weight:500;transform:translate(-100%,-50%)">${key}</div>`;
+  rowsEl.appendChild(r);
+  return r;
+});
+// chart geometry
+(function () {
+  const pts = DATA.map((v, i) => [px(i), py(v)]);
+  // monotone cubic (Fritsch–Carlson): the curve never overshoots a data point
+  const n = pts.length, dx = 424 / 11, m = [], dl = [];
+  for (let i = 0; i < n - 1; i++) dl.push((pts[i + 1][1] - pts[i][1]) / dx);
+  m[0] = dl[0]; m[n - 1] = dl[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = dl[i - 1] * dl[i] <= 0 ? 0 : (dl[i - 1] + dl[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (dl[i] === 0) { m[i] = m[i + 1] = 0; continue; }
+    const a = m[i] / dl[i], b = m[i + 1] / dl[i], h = Math.hypot(a, b);
+    if (h > 3) { m[i] = 3 * a / h * dl[i]; m[i + 1] = 3 * b / h * dl[i]; }
+  }
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+    d += ` C${(x1 + dx / 3).toFixed(2)},${(y1 + m[i] * dx / 3).toFixed(2)} ${(x2 - dx / 3).toFixed(2)},${(y2 - m[i + 1] * dx / 3).toFixed(2)} ${x2},${y2}`;
+  }
+  $('line').setAttribute('d', d);
+  $('area').setAttribute('d', d + ` L212,330 L-212,330 Z`);
+  $('mApr').setAttribute('x', px(3) - 10); $('mJul').setAttribute('x', px(6) - 9); $('mOct').setAttribute('x', px(9) - 10);
+})();
+const LINE = $('line');
+function chartY(x) {
+  // y on the drawn curve at x (binary search along the path)
+  const L = LINE.getTotalLength();
+  let lo = 0, hi = L;
+  for (let i = 0; i < 22; i++) { const m = (lo + hi) / 2; if (LINE.getPointAtLength(m).x < x) lo = m; else hi = m; }
+  return LINE.getPointAtLength(lo).y;
+}
+// play/pause polygons (two quads each)
+const PLAY = [[[6, 3.2], [12.6, 7.1], [12.6, 14.9], [6, 18.8]], [[12.6, 7.1], [19.2, 11], [19.2, 11], [12.6, 14.9]]];
+const PAUSE = [[[5.6, 4], [9.6, 4], [9.6, 18], [5.6, 18]], [[12.4, 4], [16.4, 4], [16.4, 18], [12.4, 18]]];
+const quad = (a, b, u) => 'M' + a.map((p, i) => `${lerp(p[0], b[i][0], u).toFixed(3)},${lerp(p[1], b[i][1], u).toFixed(3)}`).join(' L') + ' Z';
+const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const mix = (a, b, u) => `rgb(${a.map((v, i) => Math.round(lerp(v, b[i], u))).join(',')})`;
+
+// ---------- seek -------------------------------------------------------------
+const els = {};
+['stage', 'shape', 'origin', 'knob', 'art', 'artDot', 'tabsTrack', 'cursor', 'pFill', 'pEl', 'pRem', 'pp1', 'pp2', 'playBtn',
+ 'vTrack', 'vFill', 'w1', 'w2', 'arc', 'bigCheck', 'kCheckPath', 'kArrow', 'kCheck', 'area', 'areaClipRect', 'guide',
+ 'dot', 'tip', 'tipA', 'tipB', 'qPh', 'qTxt', 'caret', 'kChip', 'kChipTxt', ...Object.keys(ORIGIN)].forEach(k => els[k] = $(k));
+const tabEls = [...document.querySelectorAll('.tab')];
+
+function seek(tIn) {
+  const t = mod(tIn);
+  // camera
+  const cs = Math.exp(CamS.at(t)), cx = CamX.at(t), cy = CamY.at(t);
+  els.stage.style.transform = `translate(${720 - cx * cs}px, ${720 - cy * cs}px) scale(${cs})`;
+
+  // shape
+  const w = SW.at(t), h = SH.at(t), x = SX.at(t), y = SY.at(t);
+  const r = Math.min(SR.at(t), w / 2, h / 2);
+  const left = x - w / 2, top = y - h / 2;
+  const sh = els.shape.style;
+  sh.left = left + 'px'; sh.top = top + 'px'; sh.width = w + 'px'; sh.height = h + 'px';
+  sh.borderRadius = r + 'px'; sh.background = SC.css(t);
+  sh.transform = `scale(${SP.at(t).toFixed(4)})`;
+  els.origin.style.left = -left + 'px'; els.origin.style.top = -top + 'px';
+
+  // content groups
+  for (const id of Object.keys(ORIGIN)) {
+    const v = vis(t, ...WIN[id]);
+    const s = applyVis(els[id], v);
+    const [ox, oy] = ORIGIN[id];
+    els[id].style.transformOrigin = `${ox}px ${oy}px`;
+    els[id].style.transform = `scale(${s.toFixed(4)})`;
+  }
+
+  // knob
+  const kl = KL.at(t), kr = KR.at(t), kt = KT.at(t), kb = KB.at(t);
+  const kw = Math.max(0, kr - kl), kh = Math.max(0, kb - kt);
+  const ks = els.knob.style;
+  ks.left = kl + 'px'; ks.top = kt + 'px'; ks.width = kw + 'px'; ks.height = kh + 'px';
+  ks.borderRadius = Math.min(KRad.at(t), kw / 2, kh / 2) + 'px';
+  ks.background = KC.css(t);
+  ks.opacity = clamp(Math.min(kw, kh) / 12).toFixed(3);
+  // the toggle knob gets a soft shadow on the grey track
+  ks.boxShadow = t >= 6.9 && t < 8.1 ? '0 1px 2px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.08)' : 'none';
+  const aV = vis(t, ...WIN.kArrow), cV = vis(t, ...WIN.kCheck);
+  applyVis(els.kArrow, aV, 3);
+  els.kArrow.style.left = (kw / 2 - 10) + 'px'; els.kArrow.style.top = (kh / 2 - 10) + 'px';
+  applyVis(els.kCheck, cV, 2);
+  els.kCheck.style.left = (kw / 2 - 9) + 'px'; els.kCheck.style.top = (kh / 2 - 9) + 'px';
+  els.kCheckPath.style.strokeDasharray = '1 1'; els.kCheckPath.style.strokeDashoffset = (1 - TCHK.at(t)).toFixed(4);
+
+  // artwork
+  const as = AS.at(t), ax = AX.at(t), ay = AY.at(t);
+  const art = els.art.style;
+  art.left = ax - as / 2 + 'px'; art.top = ay - as / 2 + 'px'; art.width = as + 'px'; art.height = as + 'px';
+  art.borderRadius = Math.min(AR.at(t), as / 2) + 'px'; art.background = '#2F6BFF';
+  art.opacity = clamp(as / 10).toFixed(3); art.visibility = as < 0.5 ? 'hidden' : 'visible';
+  const ds = as * 0.58; els.artDot.style.cssText = `position:absolute;border-radius:50%;background:#0C0C0C;width:${ds}px;height:${ds}px;left:${(as - ds) / 2}px;top:${(as - ds) / 2}px;box-shadow:inset 0 0 0 ${(ds * 0.34).toFixed(2)}px #0C0C0C, inset 0 0 0 ${(ds * 0.5).toFixed(2)}px #fff`;
+
+  // tabs track (card state only)
+  const tv = vis(t, ...WIN.tabsTrack);
+  Object.assign(els.tabsTrack.style, { left: '-220px', top: '-34px', width: '440px', height: '68px', borderRadius: '34px', background: '#F1EFEB', opacity: tv.o.toFixed(3) });
+
+  // loader + check
+  els.arc.style.strokeDasharray = `${Math.max(0.0001, ARC.at(t)).toFixed(4)} 2`;
+  els.arc.setAttribute('transform', `rotate(${(-90 + t * 330).toFixed(2)})`);
+  els.bigCheck.style.strokeDasharray = '1 1'; els.bigCheck.style.strokeDashoffset = (1 - CHK.at(t)).toFixed(4);
+
+  // island bars
+  [...bars.children].forEach((b, i) => {
+    const hgt = 7 + 11 * (0.5 + 0.5 * Math.sin(t * Math.PI * 4 + i * 1.7)) * (0.6 + 0.4 * Math.sin(t * Math.PI * 2 + i));
+    b.style.height = hgt + 'px'; b.style.top = -hgt / 2 + 'px';
+  });
+
+  // player
+  const p = pRaw(t), kcx = (kl + kr) / 2;
+  els.pFill.style.width = Math.max(0, kcx + 186) + 'px';
+  els.pEl.textContent = fmt(p * 204); els.pRem.textContent = '-' + fmt(204 - p * 204);
+  const u = PP.at(t);
+  els.pp1.setAttribute('d', quad(PLAY[0], PAUSE[0], u)); els.pp2.setAttribute('d', quad(PLAY[1], PAUSE[1], u));
+  els.playBtn.style.transform = `translate(-50%,-50%) scale(${PB.at(t).toFixed(4)})`;
+
+  // volume
+  const trk = TRK.at(t);
+  els.vTrack.style.width = (VW + trk) + 'px';
+  els.vFill.style.width = Math.max(0, kcx - VL) + 'px';
+  const vol = clamp((kcx - VL) / VW);
+  els.w1.style.opacity = clamp(vol * 3 - 0.2).toFixed(3); els.w2.style.opacity = clamp(vol * 3 - 1.4).toFixed(3);
+
+  // tab label colours follow the indicator
+  tabEls.forEach((el, i) => {
+    const a = clamp(1 - Math.abs(kcx - (i - 1) * TABW) / (TABW * 0.75));
+    el.style.color = mix([111, 109, 105], [255, 255, 255], a);
+  });
+
+  // chart
+  const dr = DRAW.at(t);
+  LINE.style.strokeDasharray = '1 1'; LINE.style.strokeDashoffset = (1 - clamp(dr, 0, 1)).toFixed(4);
+  els.areaClipRect.setAttribute('width', (428 * clamp(dr)).toFixed(2));
+  const tipV = vis(t, ...WIN.tip);
+  const tx = TIPX.at(t), ty = tipV.o > 0.002 ? chartY(tx) : 200;
+  els.guide.setAttribute('x1', tx); els.guide.setAttribute('x2', tx); els.guide.style.opacity = tipV.o;
+  els.dot.setAttribute('cx', tx); els.dot.setAttribute('cy', ty); els.dot.style.opacity = tipV.o;
+  els.dot.setAttribute('r', (5.5 * (0.6 + 0.4 * tipV.e)).toFixed(3));
+  const tipS = applyVis(els.tip, tipV, 3, 0.08);
+  els.tip.style.left = tx + 'px'; els.tip.style.top = (ty - 50) + 'px';
+  els.tip.style.transform = `scale(${tipS})`;
+  applyVis(els.tipA, vis(t, ...WIN.tipA), 3); applyVis(els.tipB, vis(t, ...WIN.tipB), 3);
+  const ch = CHIP.at(t);
+  els.kChip.style.opacity = (ch * (1 - clamp((t - 11.0) / 0.2))).toFixed(3);
+  els.kChipTxt.style.color = mix([94, 92, 88], [255, 255, 255], ch * (1 - clamp((t - 11.0) / 0.2)));
+
+  // palette
+  const q = QKEYS.filter(([k]) => t >= k).map(([, c]) => c).join('');
+  els.qTxt.innerHTML = QKEYS.map(([k, c]) => {
+    const e = S(t - k, 30, 1);
+    return t >= k ? `<span style="display:inline-block;opacity:${e.toFixed(3)};filter:${e < 0.98 ? `blur(${(2 * (1 - e)).toFixed(2)}px)` : 'none'}">${c}</span>` : '';
+  }).join('');
+  els.qPh.style.opacity = q.length ? 0 : 1;
+  const qw = [0, 9.2, 19.4, 29.4][q.length];
+  const typing = QKEYS.some(([k]) => t >= k - 0.02 && t < k + 0.25);
+  els.caret.style.left = (-197 + qw) + 'px';
+  els.caret.style.opacity = typing ? 1 : (Math.floor(mod(t) / 0.25) % 2 === 0 ? 1 : 0.15);
+  rowEls.forEach((el, i) => {
+    const hide = RHIDE[i];
+    const g = hide ? S(t - hide, 30, 1) * (t < 13.2 ? 1 : 0) : 0;
+    el.style.transform = `translateY(${RY[i].at(t).toFixed(3)}px)`;
+    el.style.opacity = (1 - g).toFixed(3);
+    el.style.filter = g > 0.01 && g < 0.99 ? `blur(${(3 * g).toFixed(2)}px)` : 'none';
+    const c = i === 1 ? ROWC.css(t) : 'rgb(28,27,25)';
+    el.children[0].style.color = i === 1 ? c : '#6F6C67';
+    el.children[1].style.color = c;
+    el.children[2].style.color = i === 1 ? mix([143, 140, 134], [200, 200, 200], clamp((t - 12.5) / 0.1)) : '#8F8C86';
+  });
+
+  // cursor (screen space, constant size)
+  const mx = 720 + (CX.at(t) - cx) * cs, my = 720 + (CY.at(t) - cy) * cs;
+  els.cursor.style.transform = `translate(${(mx - 3).toFixed(2)}px, ${(my - 3).toFixed(2)}px) scale(${CP.at(t).toFixed(4)})`;
+}
+window.seek = seek;
+window.DURATION = T;
+window.ready = document.fonts.ready.then(() => { seek(0); return true; });
+seek(0);
+</script>
+</body>
+</html>
