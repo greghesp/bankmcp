@@ -1,0 +1,175 @@
+<title>Shape Morph</title>
+<style>
+/*ANIM_STYLE*/
+
+:root {
+  --bg: #F6F4F0; --ink: #17160F; --muted: #76726A; --line: #E1DDD6; --cell: #E6E2DB;
+  --accent: #2F6BFF; --btn: #17160F; --btn-ink: #FFFFFF; --stage-edge: rgba(23, 22, 15, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #131311; --ink: #ECEAE5; --muted: #8E8A82; --line: #2A2925; --cell: #2A2925;
+    --btn: #ECEAE5; --btn-ink: #131311; --stage-edge: rgba(255, 255, 255, .06);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #131311; --ink: #ECEAE5; --muted: #8E8A82; --line: #2A2925; --cell: #2A2925;
+  --btn: #ECEAE5; --btn-ink: #131311; --stage-edge: rgba(255, 255, 255, .06);
+}
+[hidden] { display: none !important; }
+html, body { background: var(--bg); }
+body { color: var(--ink); font-family: Geist, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; padding-inline: 16px; padding-block: 28px 40px; }
+.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+.meta { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stage-box { position: relative; width: 100%; aspect-ratio: 1; max-width: 100%; border-radius: 14px; overflow: hidden; box-shadow: 0 0 0 1px var(--stage-edge); background: #ECE9E4; }
+.transport { display: flex; align-items: center; gap: 10px; }
+.btn { flex: none; width: 40px; height: 40px; border-radius: 20px; border: 0; background: var(--btn); color: var(--btn-ink); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line); }
+.btn.ghost[aria-pressed="true"] { background: var(--accent); color: #fff; box-shadow: none; }
+.btn:focus-visible, .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.btn svg .solid { fill: currentColor; stroke: none; }
+.grid { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+.cell { height: 22px; border: 0; padding: 0; border-radius: 4px; background: var(--cell); cursor: pointer; position: relative; overflow: hidden; }
+.cell:first-child { border-radius: 6px 4px 4px 6px; }
+.cell .fill { position: absolute; inset: 0; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); }
+.cell.past .fill { transform: scaleX(1); opacity: .28; }
+.readout { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.readout b { color: var(--ink); font-weight: 550; }
+.note { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.5; max-width: 62ch; }
+@media (max-width: 480px) { .cell { height: 18px; } .grid { gap: 3px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Shape Morph</h1>
+    <span class="meta">__BPM__ BPM · 7 bars · 1440 × 1440 loop</span>
+  </header>
+
+  <div class="stage-box" id="stageBox">
+    <div id="frame">
+<!--ANIM_MARKUP-->
+    </div>
+  </div>
+
+  <div class="transport">
+    <button class="btn" id="playBtnUi" aria-label="Pause">
+      <svg viewBox="0 0 24 24" id="icoPause"><rect class="solid" x="6" y="5" width="4" height="14" rx="1"/><rect class="solid" x="14" y="5" width="4" height="14" rx="1"/></svg>
+      <svg viewBox="0 0 24 24" id="icoPlay" hidden><path class="solid" d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+    </button>
+    <button class="btn ghost" id="soundBtn" aria-pressed="false" aria-label="Turn sound on">
+      <svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path id="sndWave" d="M15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.6a7.6 7.6 0 0 1 0 10.8"/><path id="sndOff" d="M16 10l4 4M20 10l-4 4"/></svg>
+    </button>
+    <div class="grid" id="grid" role="group" aria-label="Beats"></div>
+  </div>
+  <div class="readout"><span><b id="state">Button</b> <span id="pos">1.1</span></span><span id="clock">0.00 s</span></div>
+  <p class="note">Click a beat to jump to it. Space plays or pauses. The soundtrack is a synthesised placeholder until the Mixkit track can be downloaded.</p>
+</div>
+
+<script>
+/*ANIM_SCRIPT*/
+</script>
+<script>
+(function () {
+  const AUDIO_DUR = __AUDIO_DUR__;          // seconds of audio per loop at the song's tempo
+  const LOOP = window.DURATION;             // 14 design seconds
+  const LABELS = ['Button', 'Click', 'Loader', 'Check', 'Island', 'Player', 'Play', 'Grab',
+    'Scrub', 'Release', 'Volume', 'Drag', 'Past max', 'Spring back', 'Toggle', 'Toggle on',
+    'Tabs', 'Revenue', 'Card', 'Chart draws', 'Tooltip', 'Peak', '⌘K', 'Type', 'Filter',
+    'Enter', 'Toast', 'Button'];
+
+  const frame = document.getElementById('frame'), box = document.getElementById('stageBox');
+  const fit = () => { frame.style.transform = `scale(${box.clientWidth / 1440})`; };
+  new ResizeObserver(fit).observe(box); fit();
+
+  const grid = document.getElementById('grid');
+  const cells = [];
+  for (let b = 0; b < 7; b++) {
+    const bar = document.createElement('div'); bar.className = 'bar';
+    for (let k = 0; k < 4; k++) {
+      const i = b * 4 + k, c = document.createElement('button');
+      c.className = 'cell'; c.innerHTML = '<span class="fill"></span>';
+      c.setAttribute('aria-label', `Bar ${b + 1} beat ${k + 1}: ${LABELS[i]}`);
+      c.addEventListener('click', () => seekTo(i * 0.5));
+      bar.appendChild(c); cells.push(c);
+    }
+    grid.appendChild(bar);
+  }
+
+  // clock: design time t in [0, 14)
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let playing = !reduced, t = 0, anchor = performance.now();
+  let ctx = null, buffer = null, src = null, gain = null, soundOn = false;
+
+  function now() {
+    if (!playing) return t;
+    if (soundOn && ctx) return ((ctx.currentTime - anchor) / AUDIO_DUR * LOOP) % LOOP;
+    return (((performance.now() - anchor) / 1000) / AUDIO_DUR * LOOP) % LOOP;
+  }
+  function restartClock() {
+    const audioT = t / LOOP * AUDIO_DUR;
+    if (src) { try { src.stop(); } catch (e) {} src = null; }
+    if (soundOn && ctx && playing) {
+      src = ctx.createBufferSource(); src.buffer = buffer; src.loop = true; src.connect(gain);
+      src.start(0, audioT);
+      anchor = ctx.currentTime - audioT;
+    } else {
+      anchor = performance.now() - audioT * 1000;
+    }
+  }
+  function seekTo(v) { t = v; restartClock(); draw(); }
+
+  async function ensureAudio() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    gain = ctx.createGain(); gain.gain.value = 0.9; gain.connect(ctx.destination);
+    const bin = Uint8Array.from(atob('__AUDIO__'), c => c.charCodeAt(0));
+    buffer = await ctx.decodeAudioData(bin.buffer);
+  }
+
+  const playUi = document.getElementById('playBtnUi'), soundBtn = document.getElementById('soundBtn');
+  function syncUi() {
+    document.getElementById('icoPause').hidden = !playing;
+    document.getElementById('icoPlay').hidden = playing;
+    playUi.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+    soundBtn.setAttribute('aria-label', soundOn ? 'Turn sound off' : 'Turn sound on');
+    document.getElementById('sndWave').style.display = soundOn ? '' : 'none';
+    document.getElementById('sndOff').style.display = soundOn ? 'none' : '';
+  }
+  function togglePlay() { t = now(); playing = !playing; restartClock(); syncUi(); }
+  playUi.addEventListener('click', togglePlay);
+  soundBtn.addEventListener('click', async () => {
+    t = now();
+    if (!soundOn) { await ensureAudio(); if (ctx.state === 'suspended') await ctx.resume(); }
+    soundOn = !soundOn; restartClock(); syncUi();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); togglePlay(); }
+  });
+
+  const stateEl = document.getElementById('state'), posEl = document.getElementById('pos'), clockEl = document.getElementById('clock');
+  let lastBeat = -1;
+  function draw() {
+    const tt = now();
+    seek(tt);
+    const beat = Math.min(27, Math.floor(tt / 0.5 + 1e-6)), frac = tt / 0.5 - beat;
+    if (beat !== lastBeat) {
+      cells.forEach((c, i) => { c.classList.toggle('past', i < beat); c.firstChild.style.transform = i < beat ? '' : 'scaleX(0)'; });
+      stateEl.textContent = LABELS[beat];
+      posEl.textContent = `${Math.floor(beat / 4) + 1}.${beat % 4 + 1}`;
+      lastBeat = beat;
+    }
+    cells[beat].firstChild.style.transform = `scaleX(${Math.max(0.04, frac)})`;
+    clockEl.textContent = `${(tt / LOOP * AUDIO_DUR).toFixed(2)} s`;
+  }
+  function loop() { draw(); requestAnimationFrame(loop); }
+  window.ready.then(() => { restartClock(); syncUi(); loop(); });
+  if (reduced) seekTo(8.5);
+})();
+</script>
